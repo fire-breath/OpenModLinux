@@ -114,3 +114,9 @@ EOF_STATE
 
 echo "OpenModLinux integration installed in: $TARGET_DIR"
 echo "Vortex executable: $VORTEX_EXECUTABLE"
+
+# BEGIN VORTEX USERDATA ON STEAM DEVICE
+if [[ -x "$SOURCE_DIR/configure-vortex-userdata.sh" ]]; then
+    "$SOURCE_DIR/configure-vortex-userdata.sh" "$PREFIX"
+fi
+# END VORTEX USERDATA ON STEAM DEVICE
