@@ -4,7 +4,7 @@
 set -Eeuo pipefail
 IFS=$'\n\t'
 
-OML_VERSION="0.1.0"
+OML_VERSION="0.2.0"
 
 oml_now() {
     date '+%Y-%m-%d %H:%M:%S'
@@ -83,3 +83,51 @@ oml_safe_link() {
 
     ln -s -- "$source" "$target"
 }
+
+# BEGIN OPENMODLINUX UNIFIED PREFIX HELPERS
+oml_prefix_drive_c() {
+    local prefix="$1"
+
+    if [[ -d "$prefix/drive_c" ]]; then
+        printf '%s\n' "$prefix/drive_c"
+        return 0
+    fi
+
+    if [[ -d "$prefix/pfx/drive_c" ]]; then
+        printf '%s\n' "$prefix/pfx/drive_c"
+        return 0
+    fi
+
+    return 1
+}
+
+oml_prepare_prefix_compat() {
+    local prefix="$1"
+
+    if [[ -d "$prefix/pfx/drive_c" && ! -e "$prefix/drive_c" ]]; then
+        ln -s "pfx/drive_c" "$prefix/drive_c"
+        if declare -F oml_info >/dev/null 2>&1; then
+            oml_info "Created UMU compatibility link: $prefix/drive_c -> pfx/drive_c"
+        else
+            printf 'Created UMU compatibility link: %s/drive_c -> pfx/drive_c\n' "$prefix"
+        fi
+    fi
+
+    [[ -d "$prefix/drive_c" || -d "$prefix/pfx/drive_c" ]]
+}
+
+oml_find_vortex_executable() {
+    local prefix="$1"
+    local drive_c
+    drive_c="$(oml_prefix_drive_c "$prefix")" || return 1
+
+    local canonical="$drive_c/Program Files/Vortex/Vortex.exe"
+    if [[ -f "$canonical" ]]; then
+        printf '%s\n' "$canonical"
+        return 0
+    fi
+
+    find "$drive_c/Program Files" "$drive_c/Program Files (x86)" \
+        -type f -iname 'Vortex.exe' -print -quit 2>/dev/null
+}
+# END OPENMODLINUX UNIFIED PREFIX HELPERS

@@ -15,7 +15,14 @@ WINE_BINARY="${2:-${WINE_BINARY:-}}"
 PREFIX="$(oml_realpath "$PREFIX")"
 WINE_BINARY="$(oml_realpath "$WINE_BINARY")"
 OML_DIR="$PREFIX/openmodlinux"
-VORTEX_EXECUTABLE="$PREFIX/drive_c/Program Files/Black Tree Gaming Ltd/Vortex/Vortex.exe"
+VORTEX_EXECUTABLE="${VORTEX_EXECUTABLE_OVERRIDE:-}"
+if [[ -z "$VORTEX_EXECUTABLE" ]]; then
+    oml_prepare_prefix_compat "$PREFIX" || oml_die "Invalid Wine/UMU prefix: $PREFIX"
+    VORTEX_EXECUTABLE="$(oml_find_vortex_executable "$PREFIX" || true)"
+fi
+[[ -n "$VORTEX_EXECUTABLE" && -f "$VORTEX_EXECUTABLE" ]] || \
+    oml_die "Vortex executable was not found in prefix: $PREFIX"
+
 APPLICATIONS_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/applications"
 DESKTOP_FILE="$APPLICATIONS_DIR/openmodlinux-vortex-nxm.desktop"
 HANDLER="$OML_DIR/nxm-handler.sh"
