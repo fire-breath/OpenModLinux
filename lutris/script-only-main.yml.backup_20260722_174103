@@ -1,0 +1,50 @@
+# Development variant. It tracks the main branch and must not be submitted to
+# the Lutris catalog. Use script-only.yml with immutable release-tag URLs there.
+variables:
+  VORTEX_VERSION: 2.2.0
+  OPENMODLINUX_VERSION: development
+
+files:
+  - setup:
+      filename: vortex-setup-2.2.0.exe
+      url: https://github.com/Nexus-Mods/Vortex/releases/download/v2.2.0/vortex-setup-2.2.0.exe
+  - openmodlinux:
+      filename: openmodlinux-main.tar.gz
+      url: https://github.com/Kerim09/OpenModLinux/archive/refs/heads/main.tar.gz
+
+game:
+  arch: win64
+  prefix: $GAMEDIR
+  exe: $GAMEDIR/drive_c/Program Files/Black Tree Gaming Ltd/Vortex/Vortex.exe
+  working_dir: $GAMEDIR/drive_c/Program Files/Black Tree Gaming Ltd/Vortex
+
+installer:
+  - extract:
+      file: openmodlinux
+      dst: $CACHE/openmodlinux
+  - task:
+      name: create_prefix
+      arch: win64
+      prefix: $GAMEDIR
+      install_mono: false
+      install_gecko: false
+  - task:
+      name: winetricks
+      app: win10 dotnet48 corefonts
+      prefix: $GAMEDIR
+      silent: true
+  - task:
+      name: wineexec
+      executable: setup
+      prefix: $GAMEDIR
+      arch: win64
+      blocking: true
+  - execute:
+      file: $CACHE/openmodlinux/OpenModLinux-main/scripts/post-install.sh
+      args: '"$GAMEDIR" "$WINEBIN"'
+      working_dir: $CACHE/openmodlinux/OpenModLinux-main/scripts
+      disable_runtime: true
+
+wine:
+  dxvk: false
+require-binaries: bash, python3, xdg-mime

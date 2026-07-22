@@ -3,48 +3,25 @@ set -Eeuo pipefail
 IFS=$'\n\t'
 
 APP_NAME="wine-prefix-integration"
-SELF="$(realpath "${BASH_SOURCE[0]}")"
-GLOBAL_BIN="$HOME/.local/bin/$APP_NAME"
-SYSTEMD_DIR="$HOME/.config/systemd/user"
-SERVICE_PATH="$SYSTEMD_DIR/$APP_NAME.service"
-TIMER_PATH="$SYSTEMD_DIR/$APP_NAME.timer"
-CONFIG_DIR="$HOME/.config/$APP_NAME"
-CONFIG_PATH="$CONFIG_DIR/roots.conf"
-
+CONFIG_PATH="$HOME/.config/$APP_NAME/roots.conf"
 ONLY_PREFIX=""
-INSTALL_GLOBAL=0
-UNINSTALL=0
 
 while (($#)); do
     case "$1" in
         --prefix)
             [[ $# -ge 2 ]] || {
-                echo "--prefix requires a path" >&2
+                echo "--prefix требует путь" >&2
                 exit 2
             }
             ONLY_PREFIX="$2"
             shift 2
             ;;
-        --install-global)
-            INSTALL_GLOBAL=1
-            shift
-            ;;
-        --uninstall)
-            UNINSTALL=1
-            shift
-            ;;
         -h|--help)
-            cat <<'EOF'
-Usage:
-  wine-prefix-integration.sh
-  wine-prefix-integration.sh --prefix PREFIX
-  wine-prefix-integration.sh --install-global [--prefix PREFIX]
-  wine-prefix-integration.sh --uninstall
-EOF
+            echo "Использование: $0 [--prefix ПРЕФИКС]"
             exit 0
             ;;
         *)
-            echo "Unknown argument: $1" >&2
+            echo "Неизвестный параметр: $1" >&2
             exit 2
             ;;
     esac
@@ -52,24 +29,24 @@ done
 
 resolve_xdg_dir() {
     local kind="$1"
-    local fallback_ru="$2"
-    local fallback_en="$3"
-    local dir=""
+    local ru_name="$2"
+    local en_name="$3"
+    local result=""
 
     if command -v xdg-user-dir >/dev/null 2>&1; then
-        dir="$(xdg-user-dir "$kind" 2>/dev/null || true)"
+        result="$(xdg-user-dir "$kind" 2>/dev/null || true)"
     fi
 
-    if [[ -z "$dir" || "$dir" == "$HOME" ]]; then
-        if [[ -d "$HOME/$fallback_ru" ]]; then
-            dir="$HOME/$fallback_ru"
+    if [[ -z "$result" || "$result" == "$HOME" ]]; then
+        if [[ -d "$HOME/$ru_name" ]]; then
+            result="$HOME/$ru_name"
         else
-            dir="$HOME/$fallback_en"
+            result="$HOME/$en_name"
         fi
     fi
 
-    mkdir -p "$dir"
-    realpath -m "$dir"
+    mkdir -p "$result"
+    realpath -m "$result"
 }
 
 DOCUMENTS_TARGET="${WINE_DOCUMENTS_TARGET:-$(resolve_xdg_dir DOCUMENTS Документы Documents)}"
@@ -79,16 +56,18 @@ backup_name() {
     local path="$1"
     local ts
     ts="$(date +%Y%m%d_%H%M%S)"
-    local candidate="${path}.before-unified-integration_${ts}"
-    local n=1
-    while [[ -e "$candidate" || -L "$candidate" ]]; do
-        candidate="${path}.before-unified-integration_${ts}_${n}"
-        ((n++))
+    local result="${path}.before-global-fix_${ts}"
+    local index=1
+
+    while [[ -e "$result" || -L "$result" ]]; do
+        result="${path}.before-global-fix_${ts}_${index}"
+        ((index++))
     done
-    printf '%s\n' "$candidate"
+
+    printf '%s\n' "$result"
 }
 
-directory_empty() {
+is_empty_dir() {
     [[ -d "$1" ]] || return 1
     ! find "$1" -mindepth 1 -print -quit 2>/dev/null | grep -q .
 }
@@ -102,60 +81,42 @@ merge_without_overwrite() {
         return 0
     fi
 
-    cp -an -- "$source"/. "$target"/
+    cp -an --reflink=auto "$source"/. "$target"/
 }
 
-redirect_directory() {
+redirect_shared_directory() {
     local source="$1"
     local target="$2"
-    local mode="${3:-merge}"
 
-    mkdir -p "$(dirname "$source")" "$(dirname "$target")"
+    mkdir -p "$(dirname "$source")" "$target"
 
     if [[ -L "$source" ]]; then
         local resolved
         resolved="$(readlink -f "$source" 2>/dev/null || true)"
         if [[ "$resolved" == "$(realpath -m "$target")" ]]; then
-            printf 'OK: %s -> %s\n' "$source" "$target"
+            echo "OK: $source -> $target"
             return 0
         fi
         rm -f -- "$source"
     elif [[ -d "$source" ]]; then
-        if directory_empty "$source"; then
+        if is_empty_dir "$source"; then
             rmdir -- "$source"
-        elif [[ ! -e "$target" ]] || directory_empty "$target"; then
-            if [[ -d "$target" ]] && directory_empty "$target"; then
-                rmdir -- "$target"
-            fi
-            if mv -- "$source" "$target" 2>/dev/null; then
-                printf 'Перенесено: %s -> %s\n' "$source" "$target"
-            else
-                mkdir -p "$target"
-                merge_without_overwrite "$source" "$target"
-                local backup
-                backup="$(backup_name "$source")"
-                mv -- "$source" "$backup"
-                printf 'Сохранён исходный каталог: %s\n' "$backup"
-            fi
         else
-            if [[ "$mode" == "merge" ]]; then
-                merge_without_overwrite "$source" "$target"
-            fi
+            merge_without_overwrite "$source" "$target"
             local backup
             backup="$(backup_name "$source")"
             mv -- "$source" "$backup"
-            printf 'Сохранён исходный каталог: %s\n' "$backup"
+            echo "Сохранён прежний каталог: $backup"
         fi
     elif [[ -e "$source" ]]; then
         local backup
         backup="$(backup_name "$source")"
         mv -- "$source" "$backup"
-        printf 'Сохранён исходный объект: %s\n' "$backup"
+        echo "Сохранён прежний объект: $backup"
     fi
 
-    mkdir -p "$target"
     ln -s -- "$target" "$source"
-    printf 'Создано: %s -> %s\n' "$source" "$target"
+    echo "Создано: $source -> $target"
 }
 
 prefix_drive_c() {
@@ -169,13 +130,87 @@ prefix_drive_c() {
     if [[ -d "$prefix/pfx/drive_c" ]]; then
         if [[ ! -e "$prefix/drive_c" ]]; then
             ln -s "pfx/drive_c" "$prefix/drive_c"
-            printf 'Создана совместимость UMU: %s/drive_c -> pfx/drive_c\n' "$prefix" >&2
+            echo "Создано: $prefix/drive_c -> pfx/drive_c" >&2
         fi
         printf '%s\n' "$prefix/pfx/drive_c"
         return 0
     fi
 
     return 1
+}
+
+materialize_staging_link() {
+    local link="$1"
+    local drive_c="$2"
+
+    [[ -L "$link" ]] || return 0
+
+    local target
+    target="$(readlink -f "$link" 2>/dev/null || true)"
+
+    echo
+    echo "Исправляется staging-ссылка:"
+    echo "  $link"
+    echo "  -> ${target:-<не существует>}"
+
+    rm -f -- "$link"
+    mkdir -p "$(dirname "$link")"
+
+    if [[ -n "$target" && -d "$target" ]]; then
+        local parent_device target_device
+        parent_device="$(stat -c '%d' "$(dirname "$link")")"
+        target_device="$(stat -c '%d' "$target")"
+
+        case "$target" in
+            "$drive_c/Vortex Mods/"*)
+                if [[ "$parent_device" == "$target_device" ]] && mv -- "$target" "$link"; then
+                    echo "Каталог перенесён в реальный staging: $link"
+                    rmdir --ignore-fail-on-non-empty "$drive_c/Vortex Mods" 2>/dev/null || true
+                    return 0
+                fi
+                ;;
+        esac
+
+        mkdir -p "$link"
+        merge_without_overwrite "$target" "$link"
+
+        local old_backup
+        old_backup="$(backup_name "$target")"
+        if mv -- "$target" "$old_backup" 2>/dev/null; then
+            echo "Старая цель сохранена: $old_backup"
+        else
+            echo "Старая цель оставлена без изменения: $target"
+        fi
+    else
+        mkdir -p "$link"
+    fi
+
+    [[ -d "$link" && ! -L "$link" ]] || {
+        echo "Не удалось создать реальный staging-каталог: $link" >&2
+        return 1
+    }
+
+    echo "Создан реальный staging-каталог: $link"
+}
+
+repair_vortex_staging() {
+    local profile="$1"
+    local drive_c="$2"
+    local vortex_root="$profile/AppData/Roaming/Vortex"
+
+    [[ -d "$vortex_root" ]] || return 0
+
+    # Download можно связывать с Linux «Загрузки».
+    redirect_shared_directory "$vortex_root/downloads" "$DOWNLOADS_TARGET"
+
+    # Staging должен быть настоящим каталогом, не symlink.
+    local staging
+    while IFS= read -r -d '' staging; do
+        materialize_staging_link "$staging" "$drive_c"
+    done < <(
+        find "$vortex_root" -mindepth 2 -maxdepth 2 -type l \
+            -name mods -print0 2>/dev/null
+    )
 }
 
 process_profile() {
@@ -190,29 +225,15 @@ process_profile() {
             ;;
     esac
 
-    redirect_directory "$profile/Documents" "$DOCUMENTS_TARGET" merge
-    redirect_directory "$profile/Downloads" "$DOWNLOADS_TARGET" merge
+    redirect_shared_directory "$profile/Documents" "$DOCUMENTS_TARGET"
+    redirect_shared_directory "$profile/Downloads" "$DOWNLOADS_TARGET"
 
     if [[ ! -e "$profile/My Documents" && ! -L "$profile/My Documents" ]]; then
         ln -s "Documents" "$profile/My Documents"
-        printf 'Создан алиас: %s/My Documents -> Documents\n' "$profile"
+        echo "Создан алиас: $profile/My Documents -> Documents"
     fi
 
-    local vortex_data="$profile/AppData/Roaming/Vortex"
-    [[ -d "$vortex_data" ]] || return 0
-
-    redirect_directory "$vortex_data/downloads" "$DOWNLOADS_TARGET" merge
-
-    local mods_dir game_dir game_slug target
-    while IFS= read -r -d '' mods_dir; do
-        game_dir="$(dirname "$mods_dir")"
-        game_slug="$(basename "$game_dir")"
-        target="$drive_c/Vortex Mods/$game_slug"
-        redirect_directory "$mods_dir" "$target" merge
-    done < <(
-        find "$vortex_data" -mindepth 2 -maxdepth 2 \
-            \( -type d -o -type l \) -name mods -print0 2>/dev/null
-    )
+    repair_vortex_staging "$profile" "$drive_c"
 }
 
 process_prefix() {
@@ -223,8 +244,8 @@ process_prefix() {
     drive_c="$(prefix_drive_c "$prefix" 2>/dev/null || true)"
     [[ -n "$drive_c" && -d "$drive_c/users" ]] || return 0
 
-    printf '\n=== Префикс: %s ===\n' "$prefix"
-    mkdir -p "$drive_c/Vortex Mods"
+    echo
+    echo "=== Префикс: $prefix ==="
 
     local profile
     while IFS= read -r -d '' profile; do
@@ -234,17 +255,20 @@ process_prefix() {
     )
 }
 
+ROOTS=()
+
 add_root() {
-    local candidate="${1:-}"
-    [[ -n "$candidate" ]] || return 0
-    candidate="${candidate/#\~/$HOME}"
-    [[ -d "$candidate" ]] || return 0
+    local value="${1:-}"
+    [[ -n "$value" ]] || return 0
+    value="${value/#\~/$HOME}"
+    [[ -d "$value" ]] || return 0
 
     local old
     for old in "${ROOTS[@]:-}"; do
-        [[ "$old" == "$candidate" ]] && return 0
+        [[ "$old" == "$value" ]] && return 0
     done
-    ROOTS+=("$candidate")
+
+    ROOTS+=("$value")
 }
 
 collect_lutris_prefixes() {
@@ -270,8 +294,6 @@ collect_lutris_prefixes() {
 }
 
 scan_all() {
-    ROOTS=()
-
     add_root "$HOME/.wine"
     add_root "$HOME/Games"
     add_root "$HOME/.local/share/lutris"
@@ -311,15 +333,9 @@ scan_all() {
 
         while IFS= read -r -d '' drive_c; do
             case "$drive_c" in
-                */pfx/drive_c)
-                    prefix="${drive_c%/pfx/drive_c}"
-                    ;;
-                */drive_c)
-                    prefix="${drive_c%/drive_c}"
-                    ;;
-                *)
-                    continue
-                    ;;
+                */pfx/drive_c) prefix="${drive_c%/pfx/drive_c}" ;;
+                */drive_c)     prefix="${drive_c%/drive_c}" ;;
+                *) continue ;;
             esac
 
             canonical="$(realpath -m "$prefix")"
@@ -333,71 +349,9 @@ scan_all() {
         )
     done
 
-    printf '\nОбработано префиксов: %d\n' "${#seen[@]}"
+    echo
+    echo "Обработано префиксов: ${#seen[@]}"
 }
-
-install_global() {
-    mkdir -p "$(dirname "$GLOBAL_BIN")" "$SYSTEMD_DIR" "$CONFIG_DIR"
-    install -m 0755 "$SELF" "$GLOBAL_BIN"
-
-    if [[ ! -f "$CONFIG_PATH" ]]; then
-        cat >"$CONFIG_PATH" <<EOF
-# Дополнительные корневые каталоги Wine/Proton-префиксов.
-# По одному пути на строку.
-#
-# /mnt/DataStore/Games
-# $HOME/ДругиеПрефиксы
-EOF
-    fi
-
-    cat >"$SERVICE_PATH" <<EOF
-[Unit]
-Description=Integrate Linux folders with Wine, Proton and Vortex prefixes
-After=default.target
-
-[Service]
-Type=oneshot
-ExecStart=$GLOBAL_BIN
-Nice=10
-IOSchedulingClass=idle
-EOF
-
-    cat >"$TIMER_PATH" <<'EOF'
-[Unit]
-Description=Keep Wine, Proton and Vortex prefix integration current
-
-[Timer]
-OnBootSec=30s
-OnUnitActiveSec=2min
-RandomizedDelaySec=15s
-Persistent=true
-Unit=wine-prefix-integration.service
-
-[Install]
-WantedBy=timers.target
-EOF
-
-    systemctl --user daemon-reload
-    systemctl --user enable --now "$APP_NAME.timer"
-    echo "Установлена глобальная интеграция: $GLOBAL_BIN"
-}
-
-uninstall_global() {
-    systemctl --user disable --now "$APP_NAME.timer" 2>/dev/null || true
-    systemctl --user stop "$APP_NAME.service" 2>/dev/null || true
-    rm -f "$SERVICE_PATH" "$TIMER_PATH" "$GLOBAL_BIN"
-    systemctl --user daemon-reload
-    echo "Служба и таймер удалены. Созданные ссылки оставлены."
-}
-
-if ((UNINSTALL)); then
-    uninstall_global
-    exit 0
-fi
-
-if ((INSTALL_GLOBAL)); then
-    install_global
-fi
 
 echo "Documents: $DOCUMENTS_TARGET"
 echo "Downloads: $DOWNLOADS_TARGET"

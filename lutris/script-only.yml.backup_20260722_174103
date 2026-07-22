@@ -1,0 +1,80 @@
+variables:
+  VORTEX_VERSION: 2.2.0
+  OPENMODLINUX_VERSION: 0.1.0
+
+files:
+  - setup:
+      filename: vortex-setup-2.2.0.exe
+      url: https://github.com/Nexus-Mods/Vortex/releases/download/v2.2.0/vortex-setup-2.2.0.exe
+  - openmodlinux:
+      filename: openmodlinux-0.1.0.tar.gz
+      url: https://github.com/Kerim09/OpenModLinux/archive/refs/tags/v0.1.0.tar.gz
+
+game:
+  arch: win64
+  prefix: $GAMEDIR
+  exe: $GAMEDIR/drive_c/Program Files/Black Tree Gaming Ltd/Vortex/Vortex.exe
+  working_dir: $GAMEDIR/drive_c/Program Files/Black Tree Gaming Ltd/Vortex
+
+installer:
+  - extract:
+      file: openmodlinux
+      dst: $CACHE/openmodlinux
+
+  - task:
+      name: create_prefix
+      arch: win64
+      prefix: $GAMEDIR
+      install_mono: false
+      install_gecko: false
+
+  - task:
+      name: winetricks
+      app: win10 dotnet48 corefonts
+      prefix: $GAMEDIR
+      silent: true
+      description: Installing Windows 10 mode, .NET Framework 4.8 and core fonts
+
+  - task:
+      name: set_regedit
+      prefix: $GAMEDIR
+      path: HKEY_CURRENT_USER\Software\Valve\Steam
+      key: SteamPath
+      value: C:\Program Files (x86)\Steam
+      type: REG_SZ
+      description: Configuring the synthetic Steam path
+
+  - task:
+      name: set_regedit
+      prefix: $GAMEDIR
+      path: HKEY_CURRENT_USER\Software\Valve\Steam
+      key: SteamExe
+      value: C:\Program Files (x86)\Steam\Steam.exe
+      type: REG_SZ
+      description: Configuring the synthetic Steam executable
+
+  - task:
+      name: wineexec
+      executable: setup
+      prefix: $GAMEDIR
+      arch: win64
+      blocking: true
+      description: Installing the official Vortex 2.2.0 build
+
+  - execute:
+      file: $CACHE/openmodlinux/OpenModLinux-0.1.0/scripts/post-install.sh
+      args: '"$GAMEDIR" "$WINEBIN"'
+      working_dir: $CACHE/openmodlinux/OpenModLinux-0.1.0/scripts
+      disable_runtime: true
+      description: Connecting Vortex to native Steam libraries and NXM links
+
+wine:
+  dxvk: false
+
+require-binaries: bash, python3, xdg-mime
+
+install_complete_text: >-
+  Vortex and the OpenModLinux integration were installed successfully. Use the
+  Lutris Play button to start Vortex. To detect Steam games installed later, run
+  openmodlinux/update.sh inside this Vortex prefix. For hardlink deployment,
+  place each game's Vortex staging directory on the same filesystem as that game.

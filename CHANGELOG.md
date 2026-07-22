@@ -7,7 +7,7 @@
 - Dynamic installation of the latest stable official Vortex release.
 - Unified Documents and Downloads integration for Wine and Proton prefixes.
 - Vortex download mapping to the Linux Downloads directory.
-- Per-game Vortex staging mapping to `C:\\Vortex Mods\\{GAME}`.
+- Vortex staging remains a real directory at `%APPDATA%\\Vortex\\{GAME}\\mods`.
 - Automatic integration of existing and newly created prefixes through a user systemd timer.
 
 ### Fixed
@@ -15,7 +15,7 @@
 - Correct Vortex executable path: `C:\\Program Files\\Vortex\\Vortex.exe`.
 - Correct Vortex working directory.
 - Classic Wine and UMU/Proton prefix compatibility.
-- Hardlink deployment failures caused by staging paths outside the Wine `C:` drive.
+- Hardlink deployment failures caused by external or symlinked staging paths.
 
 ## 0.1.0 - 2026-07-19
 
