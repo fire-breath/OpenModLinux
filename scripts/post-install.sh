@@ -120,3 +120,9 @@ if [[ -x "$SOURCE_DIR/configure-vortex-userdata.sh" ]]; then
     "$SOURCE_DIR/configure-vortex-userdata.sh" "$PREFIX"
 fi
 # END VORTEX USERDATA ON STEAM DEVICE
+
+# BEGIN VORTEX NATIVE STEAM MAPPING
+if [[ -x "$SOURCE_DIR/configure-vortex-native-steam.sh" ]]; then
+    "$SOURCE_DIR/configure-vortex-native-steam.sh" "$PREFIX"
+fi
+# END VORTEX NATIVE STEAM MAPPING

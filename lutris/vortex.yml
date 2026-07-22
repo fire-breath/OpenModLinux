@@ -11,7 +11,7 @@ script:
     exe: $GAMEDIR/drive_c/Program Files/Vortex/Vortex.exe
     working_dir: $GAMEDIR/drive_c/Program Files/Vortex
 
-    args: --user-data "C:\Program Files (x86)\Steam\steamapps\vortex-userdata" --disable-gpu --disable-gpu-compositing --disable-gpu-sandbox --no-sandbox --force-device-scale-factor=1
+    args: --user-data "C:\SteamLibrary\steamapps\vortex-userdata" --disable-gpu --disable-gpu-compositing --disable-gpu-sandbox --no-sandbox --force-device-scale-factor=1
   installer:
     - execute:
         file: $SCRIPTDIR/../scripts/download-vortex-latest.sh
@@ -39,7 +39,7 @@ script:
         prefix: $GAMEDIR
         path: HKEY_CURRENT_USER\Software\Valve\Steam
         key: SteamPath
-        value: C:\Program Files (x86)\Steam
+        value: C:\SteamLibrary
         type: REG_SZ
 
     - task:
@@ -47,7 +47,7 @@ script:
         prefix: $GAMEDIR
         path: HKEY_CURRENT_USER\Software\Valve\Steam
         key: SteamExe
-        value: C:\Program Files (x86)\Steam\Steam.exe
+        value: C:\SteamLibrary\Steam.exe
         type: REG_SZ
 
     - task:
