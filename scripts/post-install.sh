@@ -126,3 +126,11 @@ if [[ -x "$SOURCE_DIR/configure-vortex-native-steam.sh" ]]; then
     "$SOURCE_DIR/configure-vortex-native-steam.sh" "$PREFIX"
 fi
 # END VORTEX NATIVE STEAM MAPPING
+
+# BEGIN OPENMODLINUX VORTEX NATIVE STEAM
+OML_NATIVE_STEAM_BASE="${SOURCE_DIR:-${TARGET_DIR:-}}"
+if [[ -n "$OML_NATIVE_STEAM_BASE" &&
+      -x "$OML_NATIVE_STEAM_BASE/configure-vortex-native-steam.sh" ]]; then
+    "$OML_NATIVE_STEAM_BASE/configure-vortex-native-steam.sh" "$PREFIX"
+fi
+# END OPENMODLINUX VORTEX NATIVE STEAM

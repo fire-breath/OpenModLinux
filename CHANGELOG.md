@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.1.2
+
+### Added
+
+- Native Steam mapping at `C:\SteamLibrary` and same-device Vortex userdata.
+- Hybrid-GPU-safe Vortex GLX/Electron launch configuration.
+- Steam SKSE launch-option generator.
+- Safe Engine Fixes preloader installation.
+- Direct Microsoft Visual C++ runtime installation for Steam Proton prefixes.
+- Generic SKSE plugin diagnostics and an Isekai Hero diagnostic shortcut.
+- Skyrim/Linux documentation and smoke tests.
+
+### Fixed
+
+- Vortex hardlink deployment failures caused by cross-device or symlinked staging.
+- Vortex GLX startup failures caused by forced NVIDIA PRIME variables.
+- Incomplete Visual C++ runtime combinations in Proton prefixes.
+
 ## 0.2.0
 
 ### Added

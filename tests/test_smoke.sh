@@ -129,4 +129,6 @@ assert script["game"]["arch"] == "win64"
 assert any("wineexec" == task.get("task", {}).get("name") for task in script["installer"])
 PY
 
+printf 'Testing Skyrim/Vortex Linux tools...\n'
+"$ROOT/tests/test_skyrim_tools.sh"
 printf 'PASS: all smoke tests completed successfully.\n'

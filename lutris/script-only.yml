@@ -11,6 +11,7 @@ files:
       url: https://github.com/Kerim09/OpenModLinux/archive/refs/tags/v0.1.0.tar.gz
 
 game:
+  args: --user-data "C:\SteamLibrary\steamapps\vortex-userdata" --disable-gpu --disable-gpu-compositing --disable-gpu-sandbox --no-sandbox --force-device-scale-factor=1
   arch: win64
   prefix: $GAMEDIR
   exe: $GAMEDIR/drive_c/Program Files/Vortex/Vortex.exe
@@ -40,7 +41,7 @@ installer:
       prefix: $GAMEDIR
       path: HKEY_CURRENT_USER\Software\Valve\Steam
       key: SteamPath
-      value: C:\Program Files (x86)\Steam
+      value: C:\SteamLibrary
       type: REG_SZ
       description: Configuring the synthetic Steam path
 
@@ -49,7 +50,7 @@ installer:
       prefix: $GAMEDIR
       path: HKEY_CURRENT_USER\Software\Valve\Steam
       key: SteamExe
-      value: C:\Program Files (x86)\Steam\Steam.exe
+      value: C:\SteamLibrary\Steam.exe
       type: REG_SZ
       description: Configuring the synthetic Steam executable
 

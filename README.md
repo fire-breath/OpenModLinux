@@ -90,3 +90,13 @@ The full standalone YAML contains the root metadata needed by
 
 MIT. Vortex itself is developed and distributed by Nexus Mods under its own
 license. This repository does not redistribute Vortex binaries.
+
+<!-- BEGIN OPENMODLINUX SKYRIM LINUX -->
+## Skyrim SE and SKSE on Linux
+
+OpenModLinux includes native Steam/Vortex hardlink mapping, hybrid-GPU-safe
+Vortex launch settings, SKSE launch-option helpers, Engine Fixes preloader
+installation, Microsoft Visual C++ prefix setup and SKSE plugin diagnostics.
+
+See [docs/skyrim-skse-linux.md](docs/skyrim-skse-linux.md).
+<!-- END OPENMODLINUX SKYRIM LINUX -->

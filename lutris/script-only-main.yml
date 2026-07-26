@@ -13,6 +13,7 @@ files:
       url: https://github.com/Kerim09/OpenModLinux/archive/refs/heads/main.tar.gz
 
 game:
+  args: --user-data "C:\SteamLibrary\steamapps\vortex-userdata" --disable-gpu --disable-gpu-compositing --disable-gpu-sandbox --no-sandbox --force-device-scale-factor=1
   arch: win64
   prefix: $GAMEDIR
   exe: $GAMEDIR/drive_c/Program Files/Vortex/Vortex.exe
