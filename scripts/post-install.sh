@@ -77,7 +77,33 @@ if [[ -x "$TARGET_DIR/sync-steam.sh" ]]; then
     "$TARGET_DIR/sync-steam.sh" "$PREFIX"
 fi
 
-if [[ -n "$WINE_BINARY" && -x "$WINE_BINARY" ]]; then
+RESOLVED_WINE=""
+
+if [[ -n "$WINE_BINARY" && ! "$WINE_BINARY" =~ umu-run && -x "$WINE_BINARY" ]]; then
+    RESOLVED_WINE="$WINE_BINARY"
+fi
+
+if [[ -z "$RESOLVED_WINE" ]]; then
+    LUTRIS_YML="$(ls "$HOME/.local/share/lutris/games/"*vortex*.yml 2>/dev/null | head -n 1 || true)"
+    if [[ -f "$LUTRIS_YML" ]]; then
+        LUTRIS_VER="$(grep -E '^\s*version:' "$LUTRIS_YML" | head -n 1 | awk '{print $2}' | tr -d '"'\''')"
+        if [[ -n "$LUTRIS_VER" && -x "$HOME/.local/share/Steam/compatibilitytools.d/$LUTRIS_VER/files/bin/wine" ]]; then
+            RESOLVED_WINE="$HOME/.local/share/Steam/compatibilitytools.d/$LUTRIS_VER/files/bin/wine"
+        elif [[ -n "$LUTRIS_VER" && -x "$HOME/.local/share/lutris/runners/wine/$LUTRIS_VER/bin/wine" ]]; then
+            RESOLVED_WINE="$HOME/.local/share/lutris/runners/wine/$LUTRIS_VER/bin/wine"
+        fi
+    fi
+fi
+
+if [[ -z "$RESOLVED_WINE" ]]; then
+    RESOLVED_WINE="$(ls -d "$HOME/.local/share/Steam/compatibilitytools.d/"*/files/bin/wine 2>/dev/null | sort -V | tail -n 1 || true)"
+fi
+
+if [[ -z "$RESOLVED_WINE" ]]; then
+    RESOLVED_WINE="$(command -v wine || true)"
+fi
+
+if [[ -n "$RESOLVED_WINE" && -x "$RESOLVED_WINE" ]]; then
     REG_FILE="$TARGET_DIR/steam-path.reg"
     cat >"$REG_FILE" <<'EOF_REG'
 Windows Registry Editor Version 5.00
@@ -86,20 +112,25 @@ Windows Registry Editor Version 5.00
 "SteamPath"="C:\\Program Files (x86)\\Steam"
 "SteamExe"="C:\\Program Files (x86)\\Steam\\Steam.exe"
 
-#rundll32 error message remove
 [HKEY_CURRENT_USER\Software\Wine\WineDbg]
 "ShowCrashDialog"=dword:00000000
+
+[HKEY_LOCAL_MACHINE\Software\Microsoft\.NETFramework]
+"OnlyUseLatestCLR"=dword:00000001
+
+[HKEY_LOCAL_MACHINE\Software\WOW6432Node\Microsoft\.NETFramework]
+"OnlyUseLatestCLR"=dword:00000001
 EOF_REG
 
     WINEPREFIX="$PREFIX" WINEDEBUG=-all \
-        "$WINE_BINARY" regedit /S "$REG_FILE" >/dev/null 2>&1 || \
-        echo "Warning: SteamPath registry import via regedit failed."
+        "$RESOLVED_WINE" regedit /S "$REG_FILE" >/dev/null 2>&1 || \
+        echo "Warning: Registry tweaks import failed."
 fi
 
 if [[ -x "$TARGET_DIR/install-nxm-handler.sh" ]]; then
     echo "Installing NXM URL handler"
     VORTEX_EXECUTABLE_OVERRIDE="$VORTEX_EXECUTABLE" \
-        "$TARGET_DIR/install-nxm-handler.sh" "$PREFIX" "$WINE_BINARY" || \
+        "$TARGET_DIR/install-nxm-handler.sh" "$PREFIX" "$RESOLVED_WINE" || \
         echo "Warning: NXM handler installation encountered an error."
 fi
 
@@ -110,31 +141,15 @@ if [[ -x "$TARGET_DIR/wine-prefix-integration.sh" ]]; then
         --prefix "$PREFIX"
 fi
 
-# find active proton
-DETECTED_PROTON=""
-LUTRIS_YML="$(ls "$HOME/.local/share/lutris/games/"*vortex*.yml 2>/dev/null | head -n 1 || true)"
-if [[ -f "$LUTRIS_YML" ]]; then
-    LUTRIS_VER="$(grep -E '^\s*version:' "$LUTRIS_YML" | head -n 1 | awk '{print $2}' | tr -d '"'\''')"
-    if [[ -n "$LUTRIS_VER" && -d "$HOME/.local/share/Steam/compatibilitytools.d/$LUTRIS_VER" ]]; then
-        DETECTED_PROTON="$HOME/.local/share/Steam/compatibilitytools.d/$LUTRIS_VER"
-    fi
-fi
-if [[ -z "$DETECTED_PROTON" ]]; then
-    DETECTED_PROTON="$(ls -d "$HOME/.local/share/Steam/compatibilitytools.d/"*Proton* 2>/dev/null | sort -V | tail -n 1 || true)"
-fi
-
 cat >"$TARGET_DIR/state.env" <<EOF_STATE
 VORTEX_PREFIX="$PREFIX"
 VORTEX_EXECUTABLE="$VORTEX_EXECUTABLE"
-WINE_BINARY="$WINE_BINARY"
+WINE_BINARY="$RESOLVED_WINE"
 EOF_STATE
-
-if [[ -n "$DETECTED_PROTON" ]]; then
-    printf 'export PROTONPATH="%s"\n' "$DETECTED_PROTON" >> "$TARGET_DIR/state.env"
-fi
 
 echo "OpenModLinux integration installed in: $TARGET_DIR"
 echo "Vortex executable: $VORTEX_EXECUTABLE"
+echo "Configured Wine binary: $RESOLVED_WINE"
 
 # BEGIN VORTEX USERDATA ON STEAM DEVICE
 if [[ -x "$SOURCE_DIR/configure-vortex-userdata.sh" ]]; then
