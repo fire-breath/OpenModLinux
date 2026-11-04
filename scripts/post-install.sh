@@ -89,14 +89,14 @@ EOF_REG
 
     WINEPREFIX="$PREFIX" WINEDEBUG=-all \
         "$WINE_BINARY" regedit /S "$REG_FILE" >/dev/null 2>&1 || \
-        echo "Предупреждение: запись SteamPath через regedit не выполнена."
+        echo "Warning: SteamPath registry import via regedit failed."
 fi
 
 if [[ -x "$TARGET_DIR/install-nxm-handler.sh" ]]; then
     echo "Installing NXM URL handler"
     VORTEX_EXECUTABLE_OVERRIDE="$VORTEX_EXECUTABLE" \
         "$TARGET_DIR/install-nxm-handler.sh" "$PREFIX" "$WINE_BINARY" || \
-        echo "Предупреждение: установка NXM handler завершилась с ошибкой."
+        echo "Warning: NXM handler installation encountered an error."
 fi
 
 if [[ -x "$TARGET_DIR/wine-prefix-integration.sh" ]]; then
@@ -106,11 +106,28 @@ if [[ -x "$TARGET_DIR/wine-prefix-integration.sh" ]]; then
         --prefix "$PREFIX"
 fi
 
+# find active proton
+DETECTED_PROTON=""
+LUTRIS_YML="$(ls "$HOME/.local/share/lutris/games/"*vortex*.yml 2>/dev/null | head -n 1 || true)"
+if [[ -f "$LUTRIS_YML" ]]; then
+    LUTRIS_VER="$(grep -E '^\s*version:' "$LUTRIS_YML" | head -n 1 | awk '{print $2}' | tr -d '"'\''')"
+    if [[ -n "$LUTRIS_VER" && -d "$HOME/.local/share/Steam/compatibilitytools.d/$LUTRIS_VER" ]]; then
+        DETECTED_PROTON="$HOME/.local/share/Steam/compatibilitytools.d/$LUTRIS_VER"
+    fi
+fi
+if [[ -z "$DETECTED_PROTON" ]]; then
+    DETECTED_PROTON="$(ls -d "$HOME/.local/share/Steam/compatibilitytools.d/"*Proton* 2>/dev/null | sort -V | tail -n 1 || true)"
+fi
+
 cat >"$TARGET_DIR/state.env" <<EOF_STATE
-VORTEX_PREFIX=$(printf '%q' "$PREFIX")
-VORTEX_EXECUTABLE=$(printf '%q' "$VORTEX_EXECUTABLE")
-WINE_BINARY=$(printf '%q' "$WINE_BINARY")
+VORTEX_PREFIX="$PREFIX"
+VORTEX_EXECUTABLE="$VORTEX_EXECUTABLE"
+WINE_BINARY="$WINE_BINARY"
 EOF_STATE
+
+if [[ -n "$DETECTED_PROTON" ]]; then
+    printf 'export PROTONPATH="%s"\n' "$DETECTED_PROTON" >> "$TARGET_DIR/state.env"
+fi
 
 echo "OpenModLinux integration installed in: $TARGET_DIR"
 echo "Vortex executable: $VORTEX_EXECUTABLE"

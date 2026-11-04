@@ -12,7 +12,6 @@ STATE_FILE="$SCRIPT_DIR/state.env"
     exit 1
 }
 
-# state.env is created by this project using shell-escaped values only.
 # shellcheck disable=SC1090
 source "$STATE_FILE"
 
@@ -38,13 +37,36 @@ esac
     exit 5
 }
 
+# find acitve proton
+ACTIVE_SERVER="$(pgrep -a wineserver 2>/dev/null | grep -v ' -w' | grep -o '/.*wineserver' | head -n 1 || true)"
+if [[ -n "$ACTIVE_SERVER" ]]; then
+    if [[ "$ACTIVE_SERVER" =~ (.*/compatibilitytools\.d/[^/]+) ]]; then
+        export PROTONPATH="${BASH_REMATCH[1]}"
+    fi
+fi
+
+if [[ -z "${PROTONPATH:-}" ]]; then
+    LUTRIS_YML="$(ls "$HOME/.local/share/lutris/games/"*vortex*.yml 2>/dev/null | head -n 1 || true)"
+    if [[ -f "$LUTRIS_YML" ]]; then
+        LUTRIS_VER="$(grep -E '^\s*version:' "$LUTRIS_YML" | head -n 1 | awk '{print $2}' | tr -d '"'\''')"
+        if [[ -n "$LUTRIS_VER" && -d "$HOME/.local/share/Steam/compatibilitytools.d/$LUTRIS_VER" ]]; then
+            export PROTONPATH="$HOME/.local/share/Steam/compatibilitytools.d/$LUTRIS_VER"
+        fi
+    fi
+fi
+
 LOG_DIR="$SCRIPT_DIR/logs"
 mkdir -p "$LOG_DIR"
 {
     printf '[%s] URL received: %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$URL"
+    if [[ -n "${PROTONPATH:-}" ]]; then
+        printf '[%s] Using Proton path: %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$PROTONPATH"
+    fi
+
     env \
         WINEPREFIX="$VORTEX_PREFIX" \
         WINEDEBUG=-all \
+        ${PROTONPATH:+PROTONPATH="$PROTONPATH"} \
         "$WINE_BINARY" "$VORTEX_EXECUTABLE" -d "$URL"
 } >>"$LOG_DIR/nxm-handler.log" 2>&1 &
 disown || true
