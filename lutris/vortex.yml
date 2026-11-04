@@ -36,7 +36,27 @@ script:
         prefix: $GAMEDIR
         silent: true
         description: Installing .NET Framework 4.8, core fonts and restoring Windows 10 mode
+    - task:
+        name: set_regedit
+        path: HKEY_CURRENT_USER\Software\Wine\WineDbg
+        key: ShowCrashDialog
+        type: REG_DWORD
+        value: '00000000'
 
+    - task:
+        name: set_regedit
+        path: HKEY_LOCAL_MACHINE\Software\Microsoft\.NETFramework
+        key: OnlyUseLatestCLR
+        type: REG_DWORD
+        value: '00000001'
+
+    - task:
+        name: set_regedit
+        path: HKEY_LOCAL_MACHINE\Software\WOW6432Node\Microsoft\.NETFramework
+        key: OnlyUseLatestCLR
+        type: REG_DWORD
+        value: '00000001'
+        
     - task:
         name: set_regedit
         prefix: $GAMEDIR

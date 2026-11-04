@@ -38,6 +38,27 @@ installer:
 
   - task:
       name: set_regedit
+      path: HKEY_CURRENT_USER\Software\Wine\WineDbg
+      key: ShowCrashDialog
+      type: REG_DWORD
+      value: '00000000'
+
+  - task:
+      name: set_regedit
+      path: HKEY_LOCAL_MACHINE\Software\Microsoft\.NETFramework
+      key: OnlyUseLatestCLR
+      type: REG_DWORD
+      value: '00000001'
+
+  - task:
+      name: set_regedit
+      path: HKEY_LOCAL_MACHINE\Software\WOW6432Node\Microsoft\.NETFramework
+      key: OnlyUseLatestCLR
+      type: REG_DWORD
+      value: '00000001'
+      
+  - task:
+      name: set_regedit
       prefix: $GAMEDIR
       path: HKEY_CURRENT_USER\Software\Valve\Steam
       key: SteamPath
