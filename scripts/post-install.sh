@@ -85,6 +85,10 @@ Windows Registry Editor Version 5.00
 [HKEY_CURRENT_USER\Software\Valve\Steam]
 "SteamPath"="C:\\Program Files (x86)\\Steam"
 "SteamExe"="C:\\Program Files (x86)\\Steam\\Steam.exe"
+
+#rundll32 error message remove
+[HKEY_CURRENT_USER\Software\Wine\WineDbg]
+"ShowCrashDialog"=dword:00000000
 EOF_REG
 
     WINEPREFIX="$PREFIX" WINEDEBUG=-all \
